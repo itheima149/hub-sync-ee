@@ -1,0 +1,61 @@
+name: sync2gitee(list)-org
+# version: 1.0.3
+# author: [yiXu](https://github.com/yi-Xu-0100)
+# guide: [yi-Xu-0100/hub-mirror](https://github.com/yi-Xu-0100/hub-mirror)
+# template: [sync2gitee.list.yml](https://github.com/yi-Xu-0100/hub-mirror/blob/main/template/sync2gitee.list.yml)
+# lastmod: 2020-10-18 19:48:01
+
+on:
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: 'debug of hub mirror action'
+        required: false
+        default: 'false'
+
+jobs:
+  run:
+    name: Sync GitHub to Gitee(list)
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Get repo and time
+        id: info
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            core.setOutput('time', new Date(Date.now()).toISOString().replace(/[^0-9]/g, ""));
+            core.setOutput('key', `${context.repo.owner}-${context.repo.repo}`);
+
+      - name: Cache src repos
+        uses: actions/cache@v3
+        id: cache
+        with:
+          path: ${{ github.workspace }}/hub-mirror-cache
+          key: ${{ runner.os }}-${{ steps.info.outputs.key }}-org-list-cache-${{ steps.info.outputs.time }}
+          restore-keys: ${{ runner.os }}-${{ steps.info.outputs.key }}-org-list-
+
+      - name: Generate repo list
+        id: repo
+        uses: yi-Xu-0100/repo-list-generator@v1.1.0
+        with:
+          user: OI-wiki
+
+      - name: Mirror hub with cache and list
+        uses: Yikun/hub-mirror-action@v1.2
+        with:
+          src: github/OI-wiki
+          dst: gitee/yi-xu-test-organization
+          dst_key: ${{ secrets.GITEE_PRIVATE_KEY }}
+          dst_token: ${{ secrets.GITEE_TOKEN }}
+          static_list: '${{ steps.repo.outputs.repoList }}'
+          cache_path: /github/workspace/hub-mirror-cache
+          account_type: org
+          force_update: true
+          timeout: 300
+          debug: ${{ github.event.inputs.debug }}
+
+      - name: Print cache path
+        run: |
+          ls -la ${{ github.workspace }}/hub-mirror-cache
